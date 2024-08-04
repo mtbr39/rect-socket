@@ -36,6 +36,14 @@ io.on('connection', (socket) => {
             io.emit('playerMoved', players[socket.id]);
         }
     });
+
+    // プレイヤーのテキスト更新イベント
+    socket.on('playerText', (text) => {
+        if (players[socket.id]) {
+            players[socket.id].text = text.text;
+            io.emit('playerText', { id: socket.id, text: text.text });
+        }
+    });
 });
 
 server.listen(PORT, () => {
