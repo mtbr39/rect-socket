@@ -7,7 +7,7 @@ let currentPlayer = { id: null, x: 50, y: 50, text: '' };
 
 const chatButton = { x: canvas.width - 80, y: canvas.height - 30, width: 60, height: 20 };
 const chatBox = { x: chatButton.x, y: chatButton.y - 50, width: 60, height: 40, visible: false };
-const chatInput = { x: chatBox.x + 5, y: chatBox.y + 5, width: 50, height: 20, text: '', cursor: 0 };
+const chatInputElement = document.getElementById('chatInput');
 
 // Canvasクリックイベント
 canvas.addEventListener('click', (event) => {
@@ -19,8 +19,14 @@ canvas.addEventListener('click', (event) => {
     if (isPointInside(x, y, chatButton)) {
         chatBox.visible = !chatBox.visible;
         if (chatBox.visible) {
-            chatInput.text = '';
-            chatInput.cursor = 0;
+            chatInputElement.style.top = (chatButton.y - chatBox.height) + 'px';
+            chatInputElement.style.left = chatButton.x + 'px';
+            chatInputElement.focus();
+            chatInputElement.value = '';
+        } else {
+            chatInputElement.blur();
+            chatInputElement.style.top = '-100px';
+            chatInputElement.style.left = '-100px';
         }
         draw();
         return;
@@ -35,24 +41,15 @@ canvas.addEventListener('click', (event) => {
 });
 
 // キーボード入力イベント
-window.addEventListener('keydown', (event) => {
-    if (chatBox.visible) {
-        if (event.key === 'Enter' && chatInput.text.trim()) {
-            currentPlayer.text = chatInput.text;
-            socket.emit('playerText', { text: chatInput.text });
-            chatInput.text = '';
-            chatInput.cursor = 0;
-            chatBox.visible = false;
-            draw();
-        } else if (event.key === 'Backspace') {
-            chatInput.text = chatInput.text.slice(0, -1);
-            chatInput.cursor = Math.max(chatInput.cursor - 1, 0);
-            draw();
-        } else if (event.key.length === 1 && event.key.match(/\S/)) {
-            chatInput.text = chatInput.text.slice(0, chatInput.cursor) + event.key + chatInput.text.slice(chatInput.cursor);
-            chatInput.cursor++;
-            draw();
-        }
+chatInputElement.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && chatInputElement.value.trim()) {
+        currentPlayer.text = chatInputElement.value;
+        socket.emit('playerText', { text: chatInputElement.value });
+        chatInputElement.value = '';
+        chatBox.visible = false;
+        chatInputElement.style.top = '-100px';
+        chatInputElement.style.left = '-100px';
+        draw();
     }
 });
 
@@ -63,7 +60,10 @@ canvas.addEventListener('mousedown', (event) => {
     const y = event.clientY - rect.top;
 
     if (chatBox.visible && isPointInside(x, y, chatBox)) {
-        chatInput.cursor = Math.floor((x - chatInput.x) / 8); // 文字幅8pxと仮定
+        // 文字幅8pxと仮定してカーソル位置を設定
+        const cursorX = x - chatBox.x;
+        chatInputElement.selectionStart = Math.floor(cursorX / 8);
+        chatInputElement.selectionEnd = chatInputElement.selectionStart;
         draw();
     }
 });
@@ -118,24 +118,6 @@ function draw() {
     ctx.fillRect(chatButton.x, chatButton.y, chatButton.width, chatButton.height);
     ctx.fillStyle = 'white';
     ctx.fillText('Chat', chatButton.x + 5, chatButton.y + 15);
-
-    // チャットボックスの描画
-    if (chatBox.visible) {
-        ctx.fillStyle = 'white';
-        ctx.fillRect(chatBox.x, chatBox.y, chatBox.width, chatBox.height);
-        ctx.strokeRect(chatBox.x, chatBox.y, chatBox.width, chatBox.height);
-        ctx.fillStyle = 'black';
-        ctx.font = '12px Arial';
-        ctx.fillText(chatInput.text, chatInput.x, chatInput.y + 12);
-        drawCursor();
-    }
-}
-
-function drawCursor() {
-    const cursorX = chatInput.x + ctx.measureText(chatInput.text.slice(0, chatInput.cursor)).width;
-    const cursorY = chatInput.y;
-    ctx.fillStyle = 'black';
-    ctx.fillRect(cursorX, cursorY - 12, 1, 12);
 }
 
 draw();
