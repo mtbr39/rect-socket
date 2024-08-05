@@ -7,43 +7,31 @@ const server = http.createServer(app);
 const io = socketIo(server);
 
 const PORT = 3000;
-const players = {};
+
+const userData = {};
 
 app.use(express.static('public'));
 
 io.on('connection', (socket) => {
     console.log('a user connected:', socket.id);
-    
-    // 新しいプレイヤーの初期位置を設定
-    players[socket.id] = { x: 50, y: 50, id: socket.id };
-
-    // 他のクライアントに新しいプレイヤーを通知
-    socket.broadcast.emit('newPlayer', players[socket.id]);
-
-    // 新しいクライアントに既存のプレイヤーを通知
-    socket.emit('currentPlayers', players);
 
     socket.on('disconnect', () => {
         console.log('user disconnected:', socket.id);
-        delete players[socket.id];
-        io.emit('playerDisconnect', socket.id);
+        delete userData[socket.id];
+        io.emit('userDisconnected', socket.id);
     });
 
-    socket.on('playerMove', (position) => {
-        if (players[socket.id]) {
-            players[socket.id].x = position.x;
-            players[socket.id].y = position.y;
-            io.emit('playerMoved', players[socket.id]);
+    // 汎用データを追加するイベント
+    socket.on('updateUserData', (data) => {
+        if (!userData[socket.id]) {
+            userData[socket.id] = {};
         }
+        Object.assign(userData[socket.id], data);
+        io.emit('userDataUpdated', { id: socket.id, data: userData[socket.id] });
     });
 
-    // プレイヤーのテキスト更新イベント
-    socket.on('playerText', (text) => {
-        if (players[socket.id]) {
-            players[socket.id].text = text.text;
-            io.emit('playerText', { id: socket.id, text: text.text });
-        }
-    });
+    // クライアントに現在の汎用データを送信
+    socket.emit('currentUserData', userData);
 });
 
 server.listen(PORT, () => {
